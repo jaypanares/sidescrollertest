@@ -1,14 +1,18 @@
 createMainGame = () => {
-  let gameOver = false; // Game over status
-
   let intervalId; // ID for setInterval function
+  let gameOver = false; // Game over status
+  let keyMap = [];
+  let fighterPool = new Array(10); // Pending pool of fighters
+  let lasers = [];
+  let deployed = []; // Fighters deployed on-screen
+  let explodeArr = []; // Explosions on-screen
 
   // Create distant layer
   let starLayer = PIXI.Texture.fromImage('images/starfield-tile.png');
   let deathstarLayer = PIXI.Texture.fromImage('images/deathstar-tile.png');
   let tfTexture = PIXI.Texture.fromImage('images/tie-fighter-small.png');
   let xwTexture = PIXI.Texture.fromImage('images/xwing-small.png');
-  let lasers = [];
+  let xwing = new PIXI.Sprite(xwTexture);
 
   let tilingStars = new PIXI.extras.TilingSprite(
                     starLayer,
@@ -19,13 +23,6 @@ createMainGame = () => {
                     deathstarLayer,
                     Game.renderer.width,
                     Game.renderer.height);
-
-  let xwing = new PIXI.Sprite(xwTexture);
-
-  let fighterPool = new Array(10); // Pending pool of fighters
-  let deployed = []; // Fighters deployed on-screen
-
-  let explodeArr = []; // Explosions on-screen
 
   // Create container and add children
   let container = new PIXI.Container();
@@ -57,6 +54,9 @@ createMainGame = () => {
     tilingStars.tilePosition.x -= farSpeed;
     tilingDeathstar.tilePosition.x -= nearSpeed;
 
+    // Handle key press animattion
+    animateKeyPress();
+
     // Animate deployed fighters and check for collisions
     animateFighters();
     shipCollisionTest();
@@ -79,6 +79,24 @@ createMainGame = () => {
     }
   }
 
+  function animateKeyPress() {
+    let speed = 4;
+
+    if (_.indexOf(keyMap, 38) >= 0 ||
+    (_.indexOf(keyMap, 38) >= 0 && _.indexOf(keyMap, 32) >= 0)) {
+      if (xwing.position.y > xwing.height / 2) {
+        xwing.position.y -= speed;
+      }
+    }
+
+    if (_.indexOf(keyMap, 40) >= 0 ||
+    (_.indexOf(keyMap, 40) >= 0 && _.indexOf(keyMap, 32) >= 0)) {
+      if (xwing.position.y < Game.renderer.height - xwing.height / 2) {
+        xwing.position.y += speed;
+      }
+    }
+  }
+
   function animateLasers() {
     lasers.forEach((laser, index) => {
       if (laser.position.x < Game.renderer.width) {
@@ -92,7 +110,8 @@ createMainGame = () => {
   function laserHitTest() {
     lasers.forEach((laser, laserIndex) => {
       deployed.forEach((fighter, fighterIndex) => {
-        if (laser.position.x + laser.width > fighter.position.x + 15 &&
+        if (laser.position.x + laser.width > fighter.position.x +
+            fighter.width * 0.5 &&
             laser.position.x < fighter.position.x &&
             laser.position.y > fighter.position.y - fighter.height / 2 &&
             laser.position.y < fighter.position.y + fighter.height / 2) {
@@ -125,8 +144,9 @@ createMainGame = () => {
   function deployTieFighters() {
     let deployedFighter = fighterPool.shift();
 
-    deployedFighter.position.y = Math.floor(Math.random() *
-      (Game.renderer.height - (deployedFighter.height / 2))) + 1;
+    deployedFighter.position.y = (Math.floor(Math.random() *
+    (Game.renderer.height - deployedFighter.height)) + 1) +
+    deployedFighter.height / 2;
 
     deployed.push(deployedFighter);
   }
@@ -204,26 +224,20 @@ createMainGame = () => {
   }
 
   function keyPressListener() {
+    $(document.body).keyup((event) => {
+      keyMap = _.without(keyMap, event.keyCode);
+    });
+
     $(document.body).keydown((event) => {
-      let speed = xwing.height / 4;
+      keyMap.push(event.keyCode);
 
       switch (event.keyCode) {
-      case 38: // Arrow up
-        if (xwing.position.y !== xwing.height / 2) {
-          xwing.position.y -= speed;
-        }
-        break;
-      case 40: // Arrow down
-        if (xwing.position.y !== Game.renderer.height - xwing.height / 2) {
-          xwing.position.y += speed;
-        }
-        break;
       case 32: // Spacebar
         let laserSprite;
         let laserGraphic = new PIXI.Graphics();
 
         laserGraphic.beginFill(0xFF0000);
-        laserGraphic.drawRect(0, 0, 100, 3);
+        laserGraphic.drawRect(0, 0, 80, 2);
 
         laserSprite = new PIXI.Sprite(laserGraphic.generateTexture());
 
